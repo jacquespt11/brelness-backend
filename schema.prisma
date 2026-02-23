@@ -1,0 +1,112 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  SUPER_ADMIN
+  ADMIN
+}
+
+enum ProductCategory {
+  FACIAL_CARE
+  BODY_CARE
+  HAIR_CARE
+  MAKEUP
+  PERFUME
+  OTHER
+}
+
+enum ReservationStatus {
+  PENDING
+  CONFIRMED
+  CANCELLED
+  DELIVERED
+}
+
+enum Source {
+  FACEBOOK
+  INSTAGRAM
+  WHATSAPP
+  LINK_BIO
+  DIRECT
+  ADMIN
+  PHONE
+  STORE
+}
+
+model User {
+  id        Int      @id @default(autoincrement())
+  email     String   @unique
+  password  String
+  name      String?
+  phone     String?
+  role      UserRole @default(ADMIN)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Product {
+  id          String           @id @default(uuid())
+  name        String
+  description String
+  price       Decimal          @db.Decimal(10, 2)
+  category    ProductCategory  @default(OTHER)
+  imageUrl    String?
+  stock       Int              @default(0)
+  isActive    Boolean          @default(true)
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+  reservations Reservation[]
+}
+
+model Reservation {
+  id                    String            @id @default(uuid())
+  customerName          String
+  customerPhone         String
+  customerEmail         String?
+  product               Product           @relation(fields: [productId], references: [id])
+  productId             String
+  quantity              Int
+  unitPrice             Decimal           @db.Decimal(10, 2)
+  totalPrice            Decimal           @db.Decimal(10, 2)
+  status                ReservationStatus @default(PENDING)
+  source                Source            @default(DIRECT)
+  preferredDeliveryDate DateTime?
+  confirmedAt           DateTime?
+  deliveredAt           DateTime?
+  notes                 String?
+  createdAt             DateTime          @default(now())
+  updatedAt             DateTime          @updatedAt
+}
+
+model Notification {
+  id        String   @id @default(uuid())
+  type      String   // RESERVATION_CREATED, STATUS_CHANGED, etc.
+  title     String
+  message   String
+  isRead    Boolean  @default(false)
+  metadata  Json?    // données contextuelles (reservationId, etc.)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([isRead])
+  @@index([createdAt])
+}
+
+model Setting {
+  id        String   @id @default(uuid())
+  key       String   @unique
+  value     String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([key])
+}
