@@ -3,6 +3,7 @@ import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { UsersService } from './modules/users/users.service';
 import { UserRole } from './modules/users/entities/user.entity';
+import { PrismaService } from './prisma.service';
 import * as bcrypt from 'bcrypt';
 
 async function bootstrap() {
@@ -41,16 +42,17 @@ async function bootstrap() {
     }
 
     // Create Initial Products
-    const prisma = app.get('PrismaService');
+    const prisma = app.get(PrismaService);
     const productsCount = await prisma.product.count();
 
     if (productsCount === 0) {
+        const { ProductCategory } = await import('@prisma/client');
         const initialProducts = [
             {
                 name: 'Lait Monganga',
                 description: 'Lait corporel hydratant intense',
                 price: 15.50,
-                category: 'BODY_CARE',
+                category: ProductCategory.BODY_CARE,
                 stock: 18,
                 imageUrl: 'https://images.unsplash.com/photo-1556228720-195a672e8a03?auto=format&fit=crop&q=80&w=400',
             },
@@ -58,7 +60,7 @@ async function bootstrap() {
                 name: 'Sérum Oxalia',
                 description: 'Sérum éclat visage bio',
                 price: 24.90,
-                category: 'FACIAL_CARE',
+                category: ProductCategory.FACIAL_CARE,
                 stock: 24,
                 imageUrl: 'https://images.unsplash.com/photo-1620916566398-39f1143ab7be?auto=format&fit=crop&q=80&w=400',
             },
@@ -66,7 +68,7 @@ async function bootstrap() {
                 name: 'Coco Channel',
                 description: 'Parfum de luxe édition limitée',
                 price: 85.00,
-                category: 'PERFUME',
+                category: ProductCategory.PERFUME,
                 stock: 31,
                 imageUrl: 'https://images.unsplash.com/photo-1541643600914-78b084683601?auto=format&fit=crop&q=80&w=400',
             }
