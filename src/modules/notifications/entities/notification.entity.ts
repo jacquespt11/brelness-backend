@@ -20,6 +20,9 @@ export class Notification {
     metadata?: Record<string, any>;
 
     @ApiProperty()
+    userId: number; // Added for multi-tenancy
+
+    @ApiProperty()
     createdAt: Date;
 
     @ApiProperty()

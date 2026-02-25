@@ -17,6 +17,7 @@ export class Reservation {
     confirmedAt: Date;
     deliveredAt: Date;
     notes: string;
+    userId: number; // Added for multi-tenancy
     createdAt: Date;
     updatedAt: Date;
 }

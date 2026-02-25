@@ -7,6 +7,7 @@ import {
     Param,
     Delete,
     HttpStatus,
+    Request,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
 import { ReservationsService } from './reservations.service';
@@ -27,8 +28,9 @@ export class ReservationsController {
     @Post()
     @ApiOperation({ summary: 'Create a new reservation' })
     @ApiResponse({ status: HttpStatus.CREATED, type: Reservation })
-    create(@Body() createReservationDto: CreateReservationDto) {
-        return this.reservationsService.create(createReservationDto);
+    @UseGuards(JwtAuthGuard) // Needed to associate reservation with an admin if they are logged in.
+    create(@Body() createReservationDto: CreateReservationDto, @Request() req: any) {
+        return this.reservationsService.create(createReservationDto, req.user);
     }
 
     @Get()
@@ -36,8 +38,8 @@ export class ReservationsController {
     @Roles(UserRole.ADMIN, UserRole.SUPER_ADMIN)
     @ApiOperation({ summary: 'Get all reservations' })
     @ApiResponse({ status: HttpStatus.OK, type: [Reservation] })
-    findAll() {
-        return this.reservationsService.findAll();
+    findAll(@Request() req: any) {
+        return this.reservationsService.findAll(req.user);
     }
 
     @Get('stats')
@@ -45,15 +47,16 @@ export class ReservationsController {
     @Roles(UserRole.ADMIN, UserRole.SUPER_ADMIN)
     @ApiOperation({ summary: 'Get reservation statistics' })
     @ApiResponse({ status: HttpStatus.OK })
-    getStats() {
-        return this.reservationsService.getStats();
+    getStats(@Request() req: any) {
+        return this.reservationsService.getStats(req.user);
     }
 
     @Get(':id')
     @ApiOperation({ summary: 'Get a reservation by id' })
     @ApiResponse({ status: HttpStatus.OK, type: Reservation })
-    findOne(@Param('id') id: string) {
-        return this.reservationsService.findOne(id);
+    @UseGuards(JwtAuthGuard)
+    findOne(@Param('id') id: string, @Request() req: any) {
+        return this.reservationsService.findOne(id, req.user);
     }
 
     @Patch(':id')
@@ -64,8 +67,9 @@ export class ReservationsController {
     update(
         @Param('id') id: string,
         @Body() updateReservationDto: UpdateReservationDto,
+        @Request() req: any,
     ) {
-        return this.reservationsService.update(id, updateReservationDto);
+        return this.reservationsService.update(id, updateReservationDto, req.user);
     }
 
     @Delete(':id')
@@ -73,7 +77,7 @@ export class ReservationsController {
     @Roles(UserRole.ADMIN, UserRole.SUPER_ADMIN)
     @ApiOperation({ summary: 'Delete a reservation (soft delete)' })
     @ApiResponse({ status: HttpStatus.NO_CONTENT })
-    remove(@Param('id') id: string) {
-        return this.reservationsService.remove(id);
+    remove(@Param('id') id: string, @Request() req: any) {
+        return this.reservationsService.remove(id, req.user);
     }
 }

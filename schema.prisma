@@ -43,14 +43,17 @@ enum Source {
 }
 
 model User {
-  id        Int      @id @default(autoincrement())
-  email     String   @unique
-  password  String
-  name      String?
-  phone     String?
-  role      UserRole @default(ADMIN)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id            Int            @id @default(autoincrement())
+  email         String         @unique
+  password      String
+  name          String?
+  phone         String?
+  role          UserRole       @default(ADMIN)
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  products      Product[]
+  reservations  Reservation[]
+  notifications Notification[]
 }
 
 model Product {
@@ -64,6 +67,8 @@ model Product {
   isActive    Boolean          @default(true)
   createdAt   DateTime         @default(now())
   updatedAt   DateTime         @updatedAt
+  userId      Int              @default(1) // Link to owner
+  user        User             @relation(fields: [userId], references: [id])
   reservations Reservation[]
 }
 
@@ -85,6 +90,8 @@ model Reservation {
   notes                 String?
   createdAt             DateTime          @default(now())
   updatedAt             DateTime          @updatedAt
+  userId                Int               @default(1) // Link to owner
+  user                  User              @relation(fields: [userId], references: [id])
 }
 
 model Notification {
@@ -96,6 +103,8 @@ model Notification {
   metadata  Json?    // données contextuelles (reservationId, etc.)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+  userId    Int      @default(1) // Link to recipient
+  user      User     @relation(fields: [userId], references: [id])
 
   @@index([isRead])
   @@index([createdAt])

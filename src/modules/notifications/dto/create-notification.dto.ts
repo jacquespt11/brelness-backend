@@ -18,4 +18,8 @@ export class CreateNotificationDto {
     @IsOptional()
     @IsObject()
     metadata?: Record<string, any>;
+
+    @ApiProperty()
+    @IsOptional() // Should be provided internally but mark as optional for DTO validation if needed
+    userId: number;
 }

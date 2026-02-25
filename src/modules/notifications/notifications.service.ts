@@ -1,26 +1,24 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
 import { PrismaService } from '../../prisma.service';
 import { Notification } from './entities/notification.entity';
 import { CreateNotificationDto } from './dto/create-notification.dto';
+import { UserRole } from '../users/entities/user.entity';
 
 @Injectable()
 export class NotificationsService {
     constructor(private prisma: PrismaService) { }
 
     async create(createNotificationDto: CreateNotificationDto): Promise<Notification> {
-        console.log('NotificationsService.create called with:', createNotificationDto);
-        try {
-            return await this.prisma.notification.create({
-                data: createNotificationDto,
-            }) as unknown as Notification;
-        } catch (error) {
-            console.error('Error in NotificationsService.create:', error);
-            throw error;
-        }
+        return await this.prisma.notification.create({
+            data: createNotificationDto,
+        }) as unknown as Notification;
     }
 
-    async findAll(isRead?: boolean): Promise<{ data: Notification[]; meta: { total: number; unread: number } }> {
-        const where = isRead !== undefined ? { isRead } : {};
+    async findAll(user: any, isRead?: boolean): Promise<{ data: Notification[]; meta: { total: number; unread: number } }> {
+        const where: any = isRead !== undefined ? { isRead } : {};
+        if (user.role === UserRole.ADMIN) {
+            where.userId = user.id;
+        }
 
         const [notifications, total, unread] = await Promise.all([
             this.prisma.notification.findMany({
@@ -28,7 +26,7 @@ export class NotificationsService {
                 orderBy: { createdAt: 'desc' },
             }),
             this.prisma.notification.count({ where }),
-            this.prisma.notification.count({ where: { isRead: false } }),
+            this.prisma.notification.count({ where: { ...where, isRead: false } }),
         ]);
 
         return {
@@ -40,7 +38,7 @@ export class NotificationsService {
         };
     }
 
-    async findOne(id: string): Promise<Notification> {
+    async findOne(id: string, user: any): Promise<Notification> {
         const notification = await this.prisma.notification.findUnique({
             where: { id },
         });
@@ -49,11 +47,15 @@ export class NotificationsService {
             throw new NotFoundException(`Notification with ID "${id}" not found`);
         }
 
+        if (user.role === UserRole.ADMIN && notification.userId !== user.id) {
+            throw new ForbiddenException('You do not have permission to access this notification');
+        }
+
         return notification as unknown as Notification;
     }
 
-    async markAsRead(id: string): Promise<Notification> {
-        await this.findOne(id);
+    async markAsRead(id: string, user: any): Promise<Notification> {
+        await this.findOne(id, user); // Ensure existence and ownership
 
         return this.prisma.notification.update({
             where: { id },
@@ -61,23 +63,21 @@ export class NotificationsService {
         }) as unknown as Notification;
     }
 
-    async markAllAsRead(): Promise<{ count: number }> {
-        console.log('NotificationsService.markAllAsRead called');
-        try {
-            const result = await this.prisma.notification.updateMany({
-                where: { isRead: false },
-                data: { isRead: true },
-            });
-            console.log('markAllAsRead result:', result);
-            return { count: result.count };
-        } catch (error) {
-            console.error('Error in NotificationsService.markAllAsRead:', error);
-            throw error;
+    async markAllAsRead(user: any): Promise<{ count: number }> {
+        const where: any = { isRead: false };
+        if (user.role === UserRole.ADMIN) {
+            where.userId = user.id;
         }
+
+        const result = await this.prisma.notification.updateMany({
+            where,
+            data: { isRead: true },
+        });
+        return { count: result.count };
     }
 
-    async remove(id: string): Promise<void> {
-        await this.findOne(id);
+    async remove(id: string, user: any): Promise<void> {
+        await this.findOne(id, user); // Ensure existence and ownership
         await this.prisma.notification.delete({
             where: { id },
         });
@@ -88,6 +88,7 @@ export class NotificationsService {
         type: 'CREATED' | 'STATUS_CHANGED' | 'CANCELLED',
         reservationId: string,
         customerName: string,
+        userId: number,
         status?: string,
     ): Promise<Notification> {
         const titles = {
@@ -106,6 +107,7 @@ export class NotificationsService {
             type: `RESERVATION_${type}`,
             title: titles[type],
             message: messages[type],
+            userId,
             metadata: { reservationId, customerName, status },
         });
     }

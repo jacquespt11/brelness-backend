@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException, ForbiddenException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../prisma.service';
 import { Reservation } from './entities/reservation.entity';
@@ -7,6 +7,7 @@ import { UpdateReservationDto } from './dto/update-reservation.dto';
 import { ProductsService } from '../products/products.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { ReservationStatus } from '../../common/enums';
+import { UserRole } from '../users/entities/user.entity';
 
 @Injectable()
 export class ReservationsService {
@@ -16,7 +17,7 @@ export class ReservationsService {
         private readonly notificationsService: NotificationsService,
     ) { }
 
-    async create(createReservationDto: CreateReservationDto): Promise<Reservation> {
+    async create(createReservationDto: CreateReservationDto, user?: any): Promise<Reservation> {
         const product = await this.productsService.findOne(createReservationDto.productId);
 
         if (product.stock < createReservationDto.quantity) {
@@ -26,6 +27,10 @@ export class ReservationsService {
         // Calculate prices using Prisma Decimal
         const unitPrice = new Prisma.Decimal(product.price);
         const totalPrice = unitPrice.times(createReservationDto.quantity);
+
+        // If an admin is creating the reservation, they own it.
+        // If a client (public) is creating it, it belongs to the product owner.
+        const ownerId = user ? user.id : (product as any).userId;
 
         const reservation = await this.prisma.reservation.create({
             data: {
@@ -38,6 +43,7 @@ export class ReservationsService {
                 totalPrice,
                 status: ReservationStatus.PENDING,
                 source: createReservationDto.source,
+                userId: ownerId,
                 ...(createReservationDto.preferredDeliveryDate
                     ? { preferredDeliveryDate: new Date(createReservationDto.preferredDeliveryDate) }
                     : {}),
@@ -49,26 +55,33 @@ export class ReservationsService {
         // Update product stock
         await this.productsService.update(product.id, {
             stock: product.stock - createReservationDto.quantity,
-        });
+        }, user || { id: ownerId, role: UserRole.ADMIN }); // Use override user if public
 
-        // Create notification
+        // Create notification for the owner
         await this.notificationsService.createReservationNotification(
             'CREATED',
             reservation.id,
             reservation.customerName,
+            reservation.userId,
         );
 
         return reservation;
     }
 
-    async findAll(): Promise<Reservation[]> {
+    async findAll(user: any): Promise<Reservation[]> {
+        const where: any = {};
+        if (user.role === UserRole.ADMIN) {
+            where.userId = user.id;
+        }
+
         return this.prisma.reservation.findMany({
+            where,
             orderBy: { createdAt: 'desc' },
             include: { product: true },
         }) as unknown as Reservation[];
     }
 
-    async findOne(id: string): Promise<Reservation> {
+    async findOne(id: string, user: any): Promise<Reservation> {
         const reservation = await this.prisma.reservation.findUnique({
             where: { id },
             include: { product: true },
@@ -76,11 +89,16 @@ export class ReservationsService {
         if (!reservation) {
             throw new NotFoundException(`Reservation with ID "${id}" not found`);
         }
+
+        if (user.role === UserRole.ADMIN && reservation.userId !== user.id) {
+            throw new ForbiddenException('You do not have permission to access this reservation');
+        }
+
         return reservation as unknown as Reservation;
     }
 
-    async update(id: string, updateReservationDto: UpdateReservationDto): Promise<Reservation> {
-        const reservation = await this.findOne(id);
+    async update(id: string, updateReservationDto: UpdateReservationDto, user: any): Promise<Reservation> {
+        const reservation = await this.findOne(id, user); // Ensure existence and ownership
         const oldStatus = reservation.status;
 
         if (updateReservationDto.status === ReservationStatus.CANCELLED && reservation.status !== ReservationStatus.CANCELLED) {
@@ -89,7 +107,7 @@ export class ReservationsService {
             if (product) {
                 await this.productsService.update(product.id, {
                     stock: product.stock + reservation.quantity,
-                });
+                }, user);
             }
         }
 
@@ -116,12 +134,14 @@ export class ReservationsService {
                     'CANCELLED',
                     updatedReservation.id,
                     updatedReservation.customerName,
+                    updatedReservation.userId,
                 );
             } else {
                 await this.notificationsService.createReservationNotification(
                     'STATUS_CHANGED',
                     updatedReservation.id,
                     updatedReservation.customerName,
+                    updatedReservation.userId,
                     updateReservationDto.status,
                 );
             }
@@ -130,10 +150,9 @@ export class ReservationsService {
         return updatedReservation;
     }
 
-    async remove(id: string): Promise<void> {
-        console.log('ReservationsService.remove called for ID:', id);
+    async remove(id: string, user: any): Promise<void> {
         try {
-            const reservation = await this.findOne(id);
+            const reservation = await this.findOne(id, user); // Ensure existence and ownership
 
             // Revert stock if not already cancelled
             if (reservation.status !== ReservationStatus.CANCELLED) {
@@ -141,7 +160,7 @@ export class ReservationsService {
                 if (product) {
                     await this.productsService.update(product.id, {
                         stock: product.stock + reservation.quantity,
-                    });
+                    }, user);
                 }
             }
 
@@ -150,15 +169,19 @@ export class ReservationsService {
                 where: { id },
                 data: { status: ReservationStatus.CANCELLED },
             });
-            console.log('ReservationsService.remove success for ID:', id);
         } catch (error) {
             console.error('Error in ReservationsService.remove for ID:', id, error);
             throw error;
         }
     }
 
-    async getStats() {
-        const reservations = await this.prisma.reservation.findMany();
+    async getStats(user: any) {
+        const where: any = {};
+        if (user.role === UserRole.ADMIN) {
+            where.userId = user.id;
+        }
+
+        const reservations = await this.prisma.reservation.findMany({ where });
         const stats = {
             total: reservations.length,
             pending: reservations.filter(r => r.status === ReservationStatus.PENDING).length,

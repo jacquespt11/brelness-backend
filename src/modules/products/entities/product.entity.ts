@@ -12,6 +12,7 @@ export class Product {
     imageUrl: string;
     stock: number;
     isActive: boolean;
+    userId: number; // Added for multi-tenancy
     createdAt: Date;
     updatedAt: Date;
     reservations?: Reservation[];

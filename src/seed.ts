@@ -30,14 +30,18 @@ async function bootstrap() {
     // Create Admin
     const adminEmail = 'admin@brelness.com';
     const existingAdmin = await usersService.findByEmail(adminEmail);
+    let adminId: number;
+
     if (!existingAdmin) {
-        await usersService.create({
+        const admin = await usersService.create({
             email: adminEmail,
             password: hashedPassword,
             role: UserRole.ADMIN,
         });
+        adminId = (admin as any).id;
         console.log('Admin created: admin@brelness.com / Password123!');
     } else {
+        adminId = existingAdmin.id;
         console.log('Admin already exists');
     }
 
@@ -55,6 +59,7 @@ async function bootstrap() {
                 category: ProductCategory.BODY_CARE,
                 stock: 18,
                 imageUrl: 'https://images.unsplash.com/photo-1556228720-195a672e8a03?auto=format&fit=crop&q=80&w=400',
+                userId: adminId,
             },
             {
                 name: 'Sérum Oxalia',
@@ -63,6 +68,7 @@ async function bootstrap() {
                 category: ProductCategory.FACIAL_CARE,
                 stock: 24,
                 imageUrl: 'https://images.unsplash.com/photo-1620916566398-39f1143ab7be?auto=format&fit=crop&q=80&w=400',
+                userId: adminId,
             },
             {
                 name: 'Coco Channel',
@@ -71,6 +77,7 @@ async function bootstrap() {
                 category: ProductCategory.PERFUME,
                 stock: 31,
                 imageUrl: 'https://images.unsplash.com/photo-1541643600914-78b084683601?auto=format&fit=crop&q=80&w=400',
+                userId: adminId,
             }
         ];
 

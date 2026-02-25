@@ -7,6 +7,7 @@ import {
     Param,
     Delete,
     HttpStatus,
+    Request,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
 import { ProductsService } from './products.service';
@@ -29,22 +30,24 @@ export class ProductsController {
     @Roles(UserRole.ADMIN, UserRole.SUPER_ADMIN)
     @ApiOperation({ summary: 'Create a new product' })
     @ApiResponse({ status: HttpStatus.CREATED, type: Product })
-    create(@Body() createProductDto: CreateProductDto) {
-        return this.productsService.create(createProductDto);
+    create(@Body() createProductDto: CreateProductDto, @Request() req: any) {
+        return this.productsService.create(createProductDto, req.user);
     }
 
     @Get()
     @ApiOperation({ summary: 'Get all active products' })
     @ApiResponse({ status: HttpStatus.OK, type: [Product] })
-    findAll() {
-        return this.productsService.findAll();
+    @UseGuards(JwtAuthGuard) // Needed to get user for filtering if logged in
+    findAll(@Request() req: any) {
+        return this.productsService.findAll(req.user);
     }
 
     @Get(':id')
     @ApiOperation({ summary: 'Get a product by id' })
     @ApiResponse({ status: HttpStatus.OK, type: Product })
-    findOne(@Param('id') id: string) {
-        return this.productsService.findOne(id);
+    @UseGuards(JwtAuthGuard)
+    findOne(@Param('id') id: string, @Request() req: any) {
+        return this.productsService.findOne(id, req.user);
     }
 
     @Patch(':id')
@@ -52,8 +55,8 @@ export class ProductsController {
     @Roles(UserRole.ADMIN, UserRole.SUPER_ADMIN)
     @ApiOperation({ summary: 'Update a product' })
     @ApiResponse({ status: HttpStatus.OK, type: Product })
-    update(@Param('id') id: string, @Body() updateProductDto: UpdateProductDto) {
-        return this.productsService.update(id, updateProductDto);
+    update(@Param('id') id: string, @Body() updateProductDto: UpdateProductDto, @Request() req: any) {
+        return this.productsService.update(id, updateProductDto, req.user);
     }
 
     @Delete(':id')
@@ -61,7 +64,7 @@ export class ProductsController {
     @Roles(UserRole.ADMIN, UserRole.SUPER_ADMIN)
     @ApiOperation({ summary: 'Deactivate a product' })
     @ApiResponse({ status: HttpStatus.NO_CONTENT })
-    remove(@Param('id') id: string) {
-        return this.productsService.remove(id);
+    remove(@Param('id') id: string, @Request() req: any) {
+        return this.productsService.remove(id, req.user);
     }
 }
