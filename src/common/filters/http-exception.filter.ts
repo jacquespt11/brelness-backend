@@ -28,6 +28,15 @@ export class HttpExceptionFilter implements ExceptionFilter {
                 path: ctx.getRequest().url,
                 errors: (message as any).message
             });
+        } else if (status >= 500) {
+            console.error('SERVER ERROR (500+):', {
+                path: ctx.getRequest().url,
+                exception: exception instanceof Error ? {
+                    name: exception.name,
+                    message: exception.message,
+                    stack: exception.stack,
+                } : exception,
+            });
         } else {
             console.error('Exception caught in filter:', exception);
         }

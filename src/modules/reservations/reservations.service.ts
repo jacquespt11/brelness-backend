@@ -188,7 +188,12 @@ export class ReservationsService {
             confirmed: reservations.filter(r => r.status === ReservationStatus.CONFIRMED).length,
             cancelled: reservations.filter(r => r.status === ReservationStatus.CANCELLED).length,
             delivered: reservations.filter(r => r.status === ReservationStatus.DELIVERED).length,
-            totalRevenue: reservations.reduce((acc, r) => acc + r.totalPrice.toNumber(), 0),
+            totalRevenue: reservations.reduce((acc, r) => {
+                const price = r.totalPrice && typeof (r.totalPrice as any).toNumber === 'function'
+                    ? r.totalPrice.toNumber()
+                    : Number(r.totalPrice) || 0;
+                return acc + price;
+            }, 0),
         };
         return stats;
     }
