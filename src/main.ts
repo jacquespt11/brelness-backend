@@ -9,7 +9,8 @@ async function bootstrap() {
   const app = await NestFactory.create(AppModule);
 
   // Set global prefix for API routes
-  app.setGlobalPrefix('api');
+  // Set global prefix for API routes, excluding the root
+  app.setGlobalPrefix('api', { exclude: ['/'] });
 
   // Global validation pipe
   app.useGlobalPipes(
