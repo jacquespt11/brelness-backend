@@ -16,6 +16,7 @@ import { UpdateProductDto } from './dto/update-product.dto';
 import { Product } from './entities/product.entity';
 import { UseGuards } from '@nestjs/common';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
+import { OptionalJwtAuthGuard } from '../../common/guards/optional-jwt-auth.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { UserRole } from '../users/entities/user.entity';
@@ -37,7 +38,7 @@ export class ProductsController {
     @Get()
     @ApiOperation({ summary: 'Get all active products' })
     @ApiResponse({ status: HttpStatus.OK, type: [Product] })
-    @UseGuards(JwtAuthGuard) // Needed to get user for filtering if logged in
+    @UseGuards(OptionalJwtAuthGuard) // Public: accessible sans token, mais passe req.user si connecté
     findAll(@Request() req: any) {
         return this.productsService.findAll(req.user);
     }
@@ -45,7 +46,7 @@ export class ProductsController {
     @Get(':id')
     @ApiOperation({ summary: 'Get a product by id' })
     @ApiResponse({ status: HttpStatus.OK, type: Product })
-    @UseGuards(JwtAuthGuard)
+    @UseGuards(OptionalJwtAuthGuard) // Public: accessible sans token
     findOne(@Param('id') id: string, @Request() req: any) {
         return this.productsService.findOne(id, req.user);
     }
