@@ -81,7 +81,7 @@ export class ReservationsService {
         }) as unknown as Reservation[];
     }
 
-    async findOne(id: string, user: any): Promise<Reservation> {
+    async findOne(id: string, user?: any): Promise<Reservation> {
         const reservation = await this.prisma.reservation.findUnique({
             where: { id },
             include: { product: true },
@@ -90,7 +90,8 @@ export class ReservationsService {
             throw new NotFoundException(`Reservation with ID "${id}" not found`);
         }
 
-        if (user.role === UserRole.ADMIN && reservation.userId !== user.id) {
+        // Si user est présent et est ADMIN, vérifier qu'il est propriétaire
+        if (user && user.role === UserRole.ADMIN && reservation.userId !== user.id) {
             throw new ForbiddenException('You do not have permission to access this reservation');
         }
 

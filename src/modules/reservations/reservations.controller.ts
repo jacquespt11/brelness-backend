@@ -16,6 +16,7 @@ import { UpdateReservationDto } from './dto/update-reservation.dto';
 import { Reservation } from './entities/reservation.entity';
 import { UseGuards } from '@nestjs/common';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
+import { OptionalJwtAuthGuard } from '../../common/guards/optional-jwt-auth.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { UserRole } from '../users/entities/user.entity';
@@ -28,7 +29,7 @@ export class ReservationsController {
     @Post()
     @ApiOperation({ summary: 'Create a new reservation' })
     @ApiResponse({ status: HttpStatus.CREATED, type: Reservation })
-    @UseGuards(JwtAuthGuard) // Needed to associate reservation with an admin if they are logged in.
+    @UseGuards(OptionalJwtAuthGuard) // Public: un client non-connecté peut réserver
     create(@Body() createReservationDto: CreateReservationDto, @Request() req: any) {
         return this.reservationsService.create(createReservationDto, req.user);
     }
